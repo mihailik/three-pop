@@ -1,0 +1,19 @@
+{
+  "name": "three-pop",
+  "version": "1.0.1",
+  "description": "THREE.js demo in a pop-up fashion: come and get going.",
+  "main": "index.js",
+  "scripts": {
+    "build": "esbuild --bundle src/index.js --sourcemap --outfile=index.js",
+    "start": "npm run build -- --serve=8304 --servedir=."
+  },
+  "keywords": [],
+  "author": "Oleg Mihailik",
+  "license": "MIT",
+  "devDependencies": {
+    "three": "*"
+  },
+  "overrides": {
+    "three": "$three"
+  }
+}
