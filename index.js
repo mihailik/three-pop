@@ -3,14 +3,22 @@
 import * as THREE from 'three';
 import Stats from 'three/addons/libs/stats.module.js';
 
+import { version } from './package.json';
+
+createScene.version = version;
+
 /**
- * @param {{
+ * @param {ConstructorParameters<typeof THREE.WebGLRenderer>[0] & {
+ *  fov?: ConstructorParameters<typeof THREE.PerspectiveCamera>[0],
+ *  aspect?: ConstructorParameters<typeof THREE.PerspectiveCamera>[1],
+ *  near?: ConstructorParameters<typeof THREE.PerspectiveCamera>[2],
+ *  far?: ConstructorParameters<typeof THREE.PerspectiveCamera>[3],
  * }} [options]
  */
-export function createScene(options) {
+export default function createScene(options) {
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-  const renderer = new THREE.WebGLRenderer();
+  const camera = new THREE.PerspectiveCamera(options?.fov, options?.aspect, options?.near, options?.far);
+  const renderer = new THREE.WebGLRenderer(options);
   /** @type {ReturnType<typeof Stats>} */
   const stats =
     // @ts-ignore
@@ -40,7 +48,6 @@ export function createScene(options) {
     animate: undefined
   }
 
-
   var debounceIntersect;
   const inter = new IntersectionObserver(arr => {
     clearTimeout(debounceIntersect);
@@ -48,7 +55,16 @@ export function createScene(options) {
       const needActive = arr[0].isIntersecting;
       const activeChanged = needActive !== active;
       result.active = active = needActive;
-      if (!activeChanged) return;
+      if (!activeChanged) {
+        if (active) {
+          const sz = container.getBoundingClientRect();
+          camera.aspect = sz.width / sz.height;
+          camera.updateProjectionMatrix();
+          renderer.setSize(sz.width, sz.height);
+        }
+
+        return;
+      }
 
       if (active) {
         lastTick = performance.now();
