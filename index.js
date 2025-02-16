@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import Stats from 'three/addons/libs/stats.module.js';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 
-export const version = '1.0.5';
+export const version = '1.0.6';
 createScene.version = version;
 
 export default createScene;
@@ -98,48 +98,44 @@ export function createScene(options) {
       const activeChanged = needActive !== active;
       outcome.active = active = needActive;
 
-      let updatingLoopArgs;
-      if (active) {
-        const sz = container.getBoundingClientRect();
-        const newAspect = sz.width / sz.height;
-        camera.aspect = newAspect;
-        const szVec = new THREE.Vector2();
-        renderer.getSize(szVec);
-        updatingLoopArgs = {
-          aspect: { from: camera.aspect, to: newAspect },
-          size: { from: { width: szVec.width, height: szVec.height }, to: { width: sz.width, height: sz.height } }
-        };
-        camera.updateProjectionMatrix();
-        renderer.setSize(sz.width, sz.height);
-
-        if (!activeChanged)
-          console.log('Updating render size/aspect: ', updatingLoopArgs);
-      }
-
-      if (!activeChanged) return;
-
-      if (active) {
-        lastTick = performance.now();
-        const logMsg = loopEverStarted ? 'Resuming loop' : 'Starting loop';
-        if (updatingLoopArgs) console.log(logMsg, updatingLoopArgs);
-        else console.log(logMsg);
-
-        loopEverStarted = true;
-        renderer.setAnimationLoop(animate);
-      } else {
-        console.log('Stopping loop');
-        renderer.setAnimationLoop(null);
-      }
+      updateActive(activeChanged);
     }, 100);
   });
   inter.observe(container);
 
   return outcome;
 
+  var lastResizeCheck;
+  var lastSize;
   function animate() {
     const now = performance.now();
     outcome.delta = now - lastTick;
     outcome.time = now - outcome.worldStartTime;
+
+    // apart from intersection observer, elements can go out of view due to IFRAME reparenting
+    // - we want to pause rendering in that case too
+
+    if (!lastResizeCheck) {
+      lastResizeCheck = now;
+      const bounds = container.getBoundingClientRect();
+      lastSize = { width: bounds.width, height: bounds.height };
+    } else {
+
+      if (now - lastResizeCheck > 1500) {
+        const newActiveDocBounds = container.ownerDocument?.documentElement?.getBoundingClientRect();
+        const bounds = container.getBoundingClientRect();
+        const newActive = newActiveDocBounds.width > 0 && newActiveDocBounds.height > 0 && bounds.width > 0 && bounds.height > 0;
+
+        const activeChanged = newActive !== active;
+        if (activeChanged || bounds.width !== lastSize.width || bounds.height !== lastSize.height) {
+          lastSize = { width: bounds.width, height: bounds.height };
+          outcome.active = active = newActive;
+          updateActive(activeChanged);
+        }
+
+        lastResizeCheck = now;
+      }
+    }
 
     stats.begin();
 
@@ -188,6 +184,41 @@ export function createScene(options) {
       controls.autoRotate = true;
       outcome.rotating = true;
       controls.autoRotateSpeed = 0.2 * dampenPhase(phase);
+    }
+  }
+
+  function updateActive(activeChanged) {
+    let updatingLoopArgs;
+    if (active) {
+      const sz = container.getBoundingClientRect();
+      const newAspect = sz.width / sz.height;
+      camera.aspect = newAspect;
+      const szVec = new THREE.Vector2();
+      renderer.getSize(szVec);
+      updatingLoopArgs = {
+        aspect: { from: camera.aspect, to: newAspect },
+        size: { from: { width: szVec.width, height: szVec.height }, to: { width: sz.width, height: sz.height } }
+      };
+      camera.updateProjectionMatrix();
+      renderer.setSize(sz.width, sz.height);
+
+      if (!activeChanged)
+        console.log('Updating render size/aspect: ', updatingLoopArgs);
+    }
+
+    if (!activeChanged) return;
+
+    if (active) {
+      lastTick = performance.now();
+      const logMsg = loopEverStarted ? 'Resuming loop' : 'Starting loop';
+      if (updatingLoopArgs) console.log(logMsg, updatingLoopArgs);
+      else console.log(logMsg);
+
+      loopEverStarted = true;
+      renderer.setAnimationLoop(animate);
+    } else {
+      console.log('Stopping loop');
+      renderer.setAnimationLoop(null);
     }
   }
 
