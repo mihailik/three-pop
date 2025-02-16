@@ -23,6 +23,6 @@ document.body.appendChild(container);
 
 <a href="https://raw.githack.com/mihailik/three-pop/refs/heads/main/index.html">
 
-<img alt="Live demo of rotating green cube" src="demo.gif">
+<img alt="Live demo of rotating green cube" src="https://raw.githubusercontent.com/mihailik/three-pop/refs/heads/main/demo.gif">
 
 </a>
