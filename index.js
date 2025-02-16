@@ -2,17 +2,22 @@
 
 import * as THREE from 'three';
 import Stats from 'three/addons/libs/stats.module.js';
+import { OrbitControls } from 'three/examples/jsm/Addons.js';
 
-export const version = '1.0.3';
+export const version = '1.0.4';
 createScene.version = version;
 
 export default createScene;
+
+const STEADY_ROTATION_SPEED = 0.2;
 
 /**
  * @param {Partial<{
  *  renderer: ConstructorParameters<typeof THREE.WebGLRenderer>[0] & Partial<THREE.WebGLRenderer>,
  *  scene: Partial<THREE.Scene>,
  *  camera: Partial<THREE.PerspectiveCamera>,
+ *  stats: Partial<ReturnType<Stats>>,
+ *  controls: Partial<OrbitControls>,
  *  animate?: () => void
  * }>} [options]
  */
@@ -39,20 +44,38 @@ export function createScene(options) {
   const stats =
     // @ts-ignore
     new Stats();
+  assignTo(stats, options?.stats);
 
   const container = document.createElement('div');
   container.style.cssText = 'min-width: 300px; min-height: 300px;';
   container.appendChild(renderer.domElement);
   container.appendChild(stats.dom);
 
+  const controls = new OrbitControls(camera, container);
+  assignTo(controls, options?.controls);
+  if (typeof options?.controls?.enableDamping !== 'boolean' && options?.controls?.enableDamping !== null) controls.enableDamping = true;
+  if (typeof options?.controls?.autoRotate !== 'boolean' && options?.controls?.autoRotate !== null) controls.autoRotate = true;
+  if (typeof options?.controls?.autoRotateSpeed !== 'number' && options?.controls?.autoRotateSpeed !== null) controls.autoRotateSpeed = STEADY_ROTATION_SPEED;
+  if (typeof options?.controls?.maxDistance !== 'number' && options?.controls?.maxDistance !== null) controls.maxDistance = 40 * 1000;
+
+  controls.addEventListener('start', function () {
+    pauseRotation();
+  });
+
+  // restart autorotate after the last interaction & an idle time has passed
+  controls.addEventListener('end', function () {
+    waitAndResumeRotation();
+  });
+
   let lastTick = performance.now();
   let active = false;
 
-  const result = {
+  const outcome = {
     scene,
     camera,
     renderer,
     stats,
+    controls,
     container,
 
     worldStartTime: lastTick,
@@ -73,7 +96,7 @@ export function createScene(options) {
       const entry = arr[arr.length - 1];
       const needActive = entry.isIntersecting;
       const activeChanged = needActive !== active;
-      result.active = active = needActive;
+      outcome.active = active = needActive;
 
       let updatingLoopArgs;
       if (active) {
@@ -111,19 +134,57 @@ export function createScene(options) {
   });
   inter.observe(container);
 
-  return result;
+  return outcome;
 
   function animate() {
     const now = performance.now();
-    result.delta = now - lastTick;
-    result.time = now - result.worldStartTime;
+    outcome.delta = now - lastTick;
+    outcome.time = now - outcome.worldStartTime;
 
-    if (typeof result.animate === 'function') {
-      result.animate();
+    if (typeof outcome.animate === 'function') {
+      outcome.animate();
     }
 
     renderer.render(scene, camera);
   }
+
+  var changingRotationInterval;
+  function pauseRotation() {
+    if (controls.autoRotate) controls.autoRotate = false;
+
+    outcome.rotating = false;
+    clearInterval(changingRotationInterval);
+  }
+
+  function waitAndResumeRotation(resumeAfterWait) {
+    const WAIT_BEFORE_RESUMING_MSEC = 10000;
+    const SPEED_UP_WITHIN_MSEC = 10000;
+
+    if (!resumeAfterWait) resumeAfterWait = WAIT_BEFORE_RESUMING_MSEC;
+
+    clearInterval(changingRotationInterval);
+    const startResumingRotation = outcome.time;
+    changingRotationInterval = setInterval(continueResumingRotation, 100);
+
+
+    function continueResumingRotation() {
+      const passedTime = outcome.time - startResumingRotation;
+      if (passedTime < resumeAfterWait) return;
+      if (passedTime > resumeAfterWait + SPEED_UP_WITHIN_MSEC) {
+        controls.autoRotateSpeed = STEADY_ROTATION_SPEED;
+        controls.autoRotate = true;
+        outcome.rotating = true;
+        clearInterval(changingRotationInterval);
+        return;
+      }
+
+      const phase = (passedTime - resumeAfterWait) / SPEED_UP_WITHIN_MSEC;
+      controls.autoRotate = true;
+      outcome.rotating = true;
+      controls.autoRotateSpeed = 0.2 * dampenPhase(phase);
+    }
+  }
+
 }
 
 function assignTo(obj, props) {
@@ -136,4 +197,9 @@ function assignTo(obj, props) {
       obj[key] = props[key];
     }
   }
+}
+
+/** @param {number} phase */
+function dampenPhase(phase) {
+  return (1 - Math.cos(phase * Math.PI)) / 2;
 }

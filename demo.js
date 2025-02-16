@@ -1,12 +1,7 @@
 import * as THREE from 'three';
 import { createScene } from 'three-pop';
 
-const sc = createScene({
-  animate: () => {
-    cube.rotation.x += 0.01;
-    cube.rotation.y += 0.01;
-  }
-});
+const sc = createScene();
 const scene = sc.scene;
 
 const geometry = new THREE.BoxGeometry(1, 1, 1);
