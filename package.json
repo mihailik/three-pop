@@ -1,13 +1,14 @@
 {
   "name": "three-pop",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "THREE.js demo in a pop-up fashion: come and get going.",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "build": "esbuild --bundle src/index.js --sourcemap --outfile=index.js",
-    "start": "npm run build -- --serve=8304 --servedir=."
+    "start": "npx esbuild --serve=8303 --servedir=."
   },
-  "keywords": [],
+  "repository": "https://github.com/mihailik/three-pop",
+  "keywords": ["three", "boilerplate", "mihailik"],
   "author": "Oleg Mihailik",
   "license": "MIT",
   "devDependencies": {
