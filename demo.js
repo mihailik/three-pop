@@ -1,12 +1,11 @@
 import * as THREE from 'three';
 import { createScene } from 'three-pop';
 
-const sc = createScene();
-const scene = sc.scene;
+const { scene, container } = createScene();
 
-const geometry = new THREE.BoxGeometry(1, 1, 1);
-const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-const cube = new THREE.Mesh(geometry, material);
-scene.add(cube);
+scene.add(new THREE.Mesh(
+  new THREE.BoxGeometry(1, 1, 1),
+  new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+));
 
-document.body.appendChild(sc.container);
+document.body.appendChild(container);

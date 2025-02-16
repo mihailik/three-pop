@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import Stats from 'three/addons/libs/stats.module.js';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 
-export const version = '1.0.6';
+export const version = '1.0.7';
 createScene.version = version;
 
 export default createScene;
@@ -71,6 +71,8 @@ export function createScene(options) {
   let active = false;
 
   const outcome = {
+    version,
+
     scene,
     camera,
     renderer,
