@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import Stats from 'three/addons/libs/stats.module.js';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 
-export const version = '1.0.4';
+export const version = '1.0.5';
 createScene.version = version;
 
 export default createScene;
@@ -31,7 +31,7 @@ export function createScene(options) {
   if (typeof options?.camera?.aspect !== 'number' && options?.camera?.aspect !== null) camera.aspect = window.innerWidth / window.innerHeight;
   if (typeof options?.camera?.near !== 'number' && options?.camera?.near !== null) camera.near = 0.1;
   if (typeof options?.camera?.far !== 'number' && options?.camera?.far !== null) camera.far = 1000;
-  if (typeof options?.camera?.position !== 'object' && options?.camera?.position !== null) camera.position.set(0, 0, 5);
+  if (typeof options?.camera?.position !== 'object' && options?.camera?.position !== null) camera.position.set(0, 0, 2);
 
   const renderer = new THREE.WebGLRenderer(options?.renderer);
   if (options?.renderer) {
@@ -141,11 +141,17 @@ export function createScene(options) {
     outcome.delta = now - lastTick;
     outcome.time = now - outcome.worldStartTime;
 
+    stats.begin();
+
+    controls.update(Math.min(outcome.delta / 1000, 0.2));
+
     if (typeof outcome.animate === 'function') {
       outcome.animate();
     }
 
     renderer.render(scene, camera);
+
+    stats.end();
   }
 
   var changingRotationInterval;

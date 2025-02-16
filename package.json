@@ -1,6 +1,6 @@
 {
   "name": "three-pop",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "THREE.js demo in a pop-up fashion: come and get going.",
   "main": "index.js",
   "scripts": {
