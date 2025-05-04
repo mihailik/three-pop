@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import Stats from 'three/addons/libs/stats.module.js';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 
-export const version = '1.0.10';
+export const version = '1.0.11';
 createScene.version = version;
 
 export default createScene;
@@ -22,37 +22,46 @@ const STEADY_ROTATION_SPEED = 0.2;
  * }>} [options]
  */
 export function createScene(options) {
-  const scene = new THREE.Scene();
-  assignTo(scene, options?.scene);
 
+  // THREE.Scene поєднує всі аспекти 3D рендеру: камеру, освітлення, самі об'єкти
+  const scene = new THREE.Scene();
+  applyOptions(scene, options?.scene);
+
+  // THREE.PerspectiveCamera керує параметрами камери
   const camera = new THREE.PerspectiveCamera();
-  assignTo(camera, options?.camera);
+  applyOptions(camera, options?.camera);
+
+  // розумні налаштування камери по замовчуванню
   if (typeof options?.camera?.fov !== 'number' && options?.camera?.fov !== null) camera.fov = 75;
-  if (typeof options?.camera?.aspect !== 'number' && options?.camera?.aspect !== null) camera.aspect = window.innerWidth / window.innerHeight;
   if (typeof options?.camera?.near !== 'number' && options?.camera?.near !== null) camera.near = 0.1;
   if (typeof options?.camera?.far !== 'number' && options?.camera?.far !== null) camera.far = 1000;
   if (typeof options?.camera?.position !== 'object' && options?.camera?.position !== null) camera.position.set(0, 0, 2);
+  // портретний, ландшафний?
+  if (typeof options?.camera?.aspect !== 'number' && options?.camera?.aspect !== null) camera.aspect = window.innerWidth / window.innerHeight;
 
   const renderer = new THREE.WebGLRenderer(options?.renderer);
-  if (options?.renderer) {
-    for (const key in options?.renderer) {
-      renderer[key] = options.renderer[key];
-    }
-  }
+  applyOptions(renderer, options?.renderer);
 
+  // зручний маленький графік в кутку екрана,
+  // що відображає кількість кадрів у секунду,
+  // витрати відеопам'яті і т.ін.
   /** @type {ReturnType<typeof Stats>} */
   const stats =
     // @ts-ignore
     new Stats();
-  assignTo(stats, options?.stats);
+  applyOptions(stats, options?.stats);
 
+  // DOM-домівка для власне елементів на сторінці браузеру
   const container = document.createElement('div');
   container.style.cssText = 'min-width: 300px; min-height: 300px;';
   container.appendChild(renderer.domElement);
   container.appendChild(stats.dom);
 
+  // підтримка візуальних маніпуляцій сценою мишою чи дотиком екрана
+  // - повернути, наблизити
+  // - код далі, нижче автоматично починає повільно крутити сцену після довгої паузи
   const controls = new OrbitControls(camera, container);
-  assignTo(controls, options?.controls);
+  applyOptions(controls, options?.controls);
   if (typeof options?.controls?.enableDamping !== 'boolean' && options?.controls?.enableDamping !== null) controls.enableDamping = true;
   if (typeof options?.controls?.autoRotate !== 'boolean' && options?.controls?.autoRotate !== null) controls.autoRotate = true;
   if (typeof options?.controls?.autoRotateSpeed !== 'number' && options?.controls?.autoRotateSpeed !== null) controls.autoRotateSpeed = STEADY_ROTATION_SPEED;
@@ -62,14 +71,16 @@ export function createScene(options) {
     pauseRotation();
   });
 
-  // restart autorotate after the last interaction & an idle time has passed
+  // автоматичне обертання після довгої паузи
   controls.addEventListener('end', function () {
     waitAndResumeRotation();
   });
 
+  // стан часу та рендеру
   let lastTick = performance.now();
   let active = false;
 
+  // цей об'єкт функція видає як результат, він поєднує всі цікаві аспекти
   const outcome = {
     version,
 
@@ -92,6 +103,9 @@ export function createScene(options) {
 
   var debounceIntersect;
   let loopEverStarted = false;
+
+  // рендер увімкнеться коли елемент "container" відобразиться на екрані
+  // для цього IntersectionObserver відслідковує присутність його на екрані
   const inter = new IntersectionObserver(arr => {
     clearTimeout(debounceIntersect);
     debounceIntersect = setTimeout(() => {
@@ -109,13 +123,15 @@ export function createScene(options) {
 
   var lastResizeCheck;
   var lastSize;
+
+  // функція, що вдіпрацьовує кожен цикл рендеру
   function animate() {
     const now = performance.now();
     outcome.delta = now - lastTick;
     outcome.time = now - outcome.worldStartTime;
 
-    // apart from intersection observer, elements can go out of view due to IFRAME reparenting
-    // - we want to pause rendering in that case too
+    // якщо видимість чи розмір елементу змінилися, анімації треба увімкнути-вимкнути,
+    // а також врахувати розмір та "аспект" - співвідношення висоти/ширини
 
     if (!lastResizeCheck) {
       lastResizeCheck = now;
@@ -139,16 +155,22 @@ export function createScene(options) {
       }
     }
 
+    // початок власне рендеру
     stats.begin();
 
+    // підтримка інтерактивного позиціонування мишею-дотиком
     controls.update(Math.min(outcome.delta / 1000, 0.2));
 
-    if (typeof outcome.animate === 'function') {
+    // на випадок додаткових дій по кожному рендерингові
+    if (typeof outcome.animate === 'function')
       outcome.animate();
-    }
 
+    // власне рендер у THREE.js:
+    // тут всі об'єкти сцени та налаштування буде зконвертовано
+    // у API-прімітіви WebGL і надіслано на відео-процесор
     renderer.render(scene, camera);
 
+    // початок рендеру
     stats.end();
   }
 
@@ -205,7 +227,7 @@ export function createScene(options) {
       renderer.setSize(sz.width, sz.height);
 
       if (!activeChanged)
-        console.log('Updating render size/aspect: ', updatingLoopArgs);
+        console.info?.('Updating render size/aspect: ', updatingLoopArgs);
     }
 
     if (!activeChanged) return;
@@ -226,12 +248,12 @@ export function createScene(options) {
 
 }
 
-function assignTo(obj, props) {
+function applyOptions(obj, props) {
   if (!obj || !props) return;
 
   for (const key in props) {
     if (props[key] && obj[key] && typeof props[key] === 'object' && typeof obj[key] === 'object') {
-      assignTo(obj[key], props[key]);
+      applyOptions(obj[key], props[key]);
     } else {
       obj[key] = props[key];
     }
